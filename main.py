@@ -1,9 +1,11 @@
 import sys
 import urllib.request
+import json
 from PyQt6.QtWidgets import (QApplication, QWidget, QHBoxLayout, QVBoxLayout,
                              QLabel, QFrame, QGridLayout, QSizePolicy, QLCDNumber)
 from PyQt6.QtCore import Qt, QRect, QTimer, QTime
 from PyQt6.QtGui import QFont, QPixmap, QImage, QPainter, QColor
+from datetime import datetime
 
 class ImageOverlayWidget(QWidget):
     def __init__(self, img_url, parent=None):
@@ -110,15 +112,15 @@ class DesktopCalendar(QWidget):
         right_layout = QVBoxLayout(right_col)
         right_layout.setContentsMargins(0, 0, 0, 0)
         right_layout.setSpacing(0)
-
+        now = datetime.now()
         #MONTH N YEAR
         main_calendar = QFrame()
         main_calendar.setStyleSheet("background-color: #3C3C3C")
         row1 = QHBoxLayout()
-        lbl_month = QLabel("Tháng 7")
+        lbl_month = QLabel(f"Tháng {now.month}")
         lbl_month.setFont(QFont('Arial', 14, QFont.Weight.Bold))
         lbl_month.setStyleSheet("color: white;")
-        lbl_year = QLabel("Năm 2026")
+        lbl_year = QLabel(f"Tháng {now.year}")
         lbl_year.setFont(QFont('Arial', 14, QFont.Weight.Bold))
         lbl_year.setStyleSheet("color: white;")
         lbl_year.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -133,7 +135,7 @@ class DesktopCalendar(QWidget):
         right_layout.addWidget(line)
         #CLOCK 
         clock_frame = QFrame()
-        clock_frame.setStyleSheet("background-color: #212121; border-radius: 8px;")
+        clock_frame.setStyleSheet("background-color: #212121")
         clock_frame.setFixedHeight(110)
         
         clock_layout = QHBoxLayout(clock_frame)
@@ -155,7 +157,7 @@ class DesktopCalendar(QWidget):
         self.lcd_s.setSegmentStyle(QLCDNumber.SegmentStyle.Flat)
         self.lcd_s.setStyleSheet("color: #ffffff; background: transparent; border: none;")
         self.lcd_s.setFixedSize(55, 40) 
-
+        
         # Tạo layout dọc riêng cho Giây để căn chỉnh cao thấp
         sec_container = QVBoxLayout()
         sec_container.setContentsMargins(0, 0, 0, 0)
@@ -185,8 +187,8 @@ class DesktopCalendar(QWidget):
         layout = QVBoxLayout(main_day)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        lbl_day_big = QLabel("24")
-        lbl_day_big.setFont(QFont("Arial", 65, QFont.Weight.Bold))
+        lbl_day_big = QLabel(f"{now.day}")
+        lbl_day_big.setFont(QFont("Arial", 120, QFont.Weight.Bold))
         lbl_day_big.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lbl_day_big.setStyleSheet("QLabel {color: #d32f2f;background: transparent;}")
         layout.addWidget(lbl_day_big)
@@ -205,21 +207,28 @@ class DesktopCalendar(QWidget):
         row3.addWidget(lbl_vi)
         row3.addWidget(lbl_en)
         right_layout.addLayout(row3)
-
+        
+        lunar_data = self.fetch_lunar_data()
         # Hàng 4
         row4 = QHBoxLayout()
-        col_lunar = QVBoxLayout()
-        col_lunar.addWidget(QLabel("<b>Âm Lịch</b>: 20/5"))
-        col_lunar.addWidget(QLabel("Giờ Tý"))
-        row4.addLayout(col_lunar)
-        
-        col_zodiac = QVBoxLayout()
-        lbl_zodiac = QLabel("<b>Giờ Hoàng Đạo</b><br>Tý, Sửu, Thìn, Tỵ")
-        lbl_zodiac.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
-        col_zodiac.addWidget(lbl_zodiac)
-        row4.addLayout(col_zodiac)
+        if lunar_data:
+            # Lấy ngày hiện tại của hệ thống (Ví dụ: ngày 6)
+            today_index = now.day - 1 
+            
+            # Đảm bảo index nằm trong phạm vi mảng trả về
+            if 0 <= today_index < len(lunar_data):
+                today_data = lunar_data[today_index]
+                lunar_info = today_data['am_lich']
+                can_chi = today_data['can_chi']
+                col_lunar = QVBoxLayout()
+                col_lunar.addWidget(QLabel(f"<b>Âm Lịch</b>: {lunar_info['ngay']}/{lunar_info['thang']}"))
+                col_lunar.addWidget(QLabel(f"Ngày: {can_chi['ngay']}"))
+                row4.addLayout(col_lunar)
+                col_zodiac = QVBoxLayout()
+                gio_str = ", ".join(today_data['gio_hoang_dao'][:2])
+                col_zodiac.addWidget(QLabel(f"<b>Giờ Hoàng Đạo</b><br>{gio_str}"))
+                row4.addLayout(col_zodiac)
         right_layout.addLayout(row4)
-
         # Hàng 5 (Grid Lịch)
         cal_grid = QGridLayout()
         cal_grid.setSpacing(2)
@@ -231,14 +240,18 @@ class DesktopCalendar(QWidget):
             if i == 5: lbl.setStyleSheet("color: #1976D2;")
             elif i == 6: lbl.setStyleSheet("color: #D32F2F;")
             cal_grid.addWidget(lbl, 0, i)
-
+        first_day_of_month = datetime(now.year, now.month, 1)
+        start_col = first_day_of_month.weekday()
         day_count = 1
         for row in range(1, 7):
             for col in range(7):
-                if day_count > 31: break
+                if row == 1 and col < start_col:
+                    continue
+                if day_count > len(lunar_data): break
+                data = lunar_data[day_count - 1]
                 cell = QFrame()
                 cell.setFixedSize(45, 45)
-                if day_count == 4:
+                if day_count == now.day:
                     cell.setStyleSheet("background-color: #ffebee; border: 1px solid #ffcdd2; border-radius: 4px;")
                 else:
                     cell.setStyleSheet("background-color: #fafafa; border: 1px solid #eeeeee; border-radius: 4px;")
@@ -253,8 +266,10 @@ class DesktopCalendar(QWidget):
                 if col == 5: solar_lbl.setStyleSheet("color: #1976D2; background: transparent; border: none;")
                 elif col == 6: solar_lbl.setStyleSheet("color: #D32F2F; background: transparent; border: none;")
                 else: solar_lbl.setStyleSheet("background: transparent; border: none;")
-
-                lunar_lbl = QLabel(f"{day_count}/5")
+                lunar_txt = f"{data['am_lich']['ngay']}"
+                if data['am_lich']['ngay'] == 1: # Highlight ngày mùng 1
+                    lunar_txt = f"{data['am_lich']['ngay']}/{data['am_lich']['thang']}"
+                lunar_lbl = QLabel(lunar_txt)
                 lunar_lbl.setFont(QFont('Arial', 7))
                 lunar_lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom)
                 lunar_lbl.setStyleSheet("color: #888888; background: transparent; border: none;")
@@ -283,7 +298,15 @@ class DesktopCalendar(QWidget):
         self.timer.timeout.connect(self.update_time)
         self.timer.start(1000)
         self.update_time()
-
+    def fetch_lunar_data(self):
+        # Thay URL này bằng đường dẫn đến file PHP của bạn
+        url = f"https://dinhkimthach.name.vn/public_api/api_v2.php"
+        try:
+            with urllib.request.urlopen(url) as response:
+                return json.loads(response.read().decode('utf-8'))
+        except Exception as e:
+            print("Lỗi API:", e)
+            return None
     def update_time(self):
         current_time = QTime.currentTime()
         text_hm = current_time.toString("hh:mm")
