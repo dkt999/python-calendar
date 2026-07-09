@@ -1,8 +1,10 @@
 import sys
 import urllib.request
 import json
+import re
 from PyQt6.QtWidgets import (QApplication, QWidget, QHBoxLayout, QVBoxLayout,
                              QLabel, QFrame, QGridLayout, QSizePolicy, QLCDNumber)
+
 from PyQt6.QtCore import Qt, QRect, QTimer, QTime
 from PyQt6.QtGui import QFont, QPixmap, QImage, QPainter, QColor
 from datetime import datetime
@@ -117,10 +119,11 @@ class DesktopCalendar(QWidget):
         main_calendar = QFrame()
         main_calendar.setStyleSheet("background-color: #3C3C3C")
         row1 = QHBoxLayout()
-        lbl_month = QLabel(f"Tháng {now.month}")
+        vi_months = ["MỘT", "HAI", "BA", "TƯ", "NĂM", "SÁU", "BẢY", "TÁM", "CHÍN", "MƯỜI", "MƯỜT MỘT", "MƯỜI HAI"]
+        lbl_month = QLabel(f"THÁNG {vi_months[now.month - 1]}")
         lbl_month.setFont(QFont('Arial', 14, QFont.Weight.Bold))
         lbl_month.setStyleSheet("color: white;")
-        lbl_year = QLabel(f"Tháng {now.year}")
+        lbl_year = QLabel(f"NĂM {now.year}")
         lbl_year.setFont(QFont('Arial', 14, QFont.Weight.Bold))
         lbl_year.setStyleSheet("color: white;")
         lbl_year.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -181,7 +184,7 @@ class DesktopCalendar(QWidget):
         line.setFixedHeight(1)
         line.setStyleSheet("background-color: #FFCA95;")
         right_layout.addWidget(line)
-        #DAY
+        # Hàng 3 #DAY
         main_day = QFrame()
         main_day.setStyleSheet("QFrame {background-color: #3C3C3C;border: none;}")
         layout = QVBoxLayout(main_day)
@@ -192,43 +195,185 @@ class DesktopCalendar(QWidget):
         lbl_day_big.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lbl_day_big.setStyleSheet("QLabel {color: #d32f2f;background: transparent;}")
         layout.addWidget(lbl_day_big)
-        right_layout.addWidget(main_day)        
+        right_layout.addWidget(main_day) 
+        line = QWidget()
+        line.setFixedHeight(1)
+        line.setStyleSheet("background-color: #FFCA95;")       
+        right_layout.addWidget(line)
 
-        # Hàng 2
+        now = datetime.now()
+        wd = now.weekday() # 0: Thứ 2, ..., 6: Chủ Nhật
+        day_num = now.day
+        vi_days = ["THỨ HAI", "THỨ BA", "THỨ TƯ", "THỨ NĂM", "THỨ SÁU", "THỨ BẢY", "CHỦ NHẬT"]
+        en_days = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURDAY", "FRIDAY", "STATURDAY", "SUNDAY"]
+        jp_days = ["月", "火", "水", "木", "金", "土", "日"]
+        # --- Hàng 3 ---
+        row3_frame = QFrame()
+        row3_frame.setStyleSheet("background-color: #3C3C3C;") 
         
+        row3 = QHBoxLayout(row3_frame)
+        row3.setContentsMargins(15, 8, 15, 8)
+        row3.setSpacing(0)
 
-        # Hàng 3
-        row3 = QHBoxLayout()
-        lbl_vi = QLabel("Thứ Bảy")
-        lbl_vi.setFont(QFont('Arial', 11))
-        lbl_en = QLabel("Saturday")
-        lbl_en.setFont(QFont('Arial', 11))
+        # Cột 1: Bên trái (Tiếng Việt)
+        lbl_vi = QLabel(vi_days[wd])
+        lbl_vi.setFont(QFont('Arial', 12, QFont.Weight.Bold))
+        lbl_vi.setStyleSheet("color: white; background: transparent;")
+        lbl_vi.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+
+        # Cột 2: Ở giữa (Hình tròn chứa chữ Nhật và Ngày)
+        circle_lbl = QLabel(f"{jp_days[wd]}")
+        circle_lbl.setFont(QFont('Arial', 12, QFont.Weight.Bold))
+        circle_lbl.setFixedSize(34, 34)
+        # Nền màu đỏ trầm làm điểm nhấn (fen có thể đổi mã màu tùy ý)
+        circle_lbl.setStyleSheet("""
+            background-color: #d32f2f; 
+            color: white; 
+            border-radius: 16px; 
+            font-weight: bold;
+        """)
+        circle_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # Cột 3: Bên phải (Tiếng Anh)
+        lbl_en = QLabel(en_days[wd])
+        lbl_en.setFont(QFont('Arial', 12, QFont.Weight.Bold))
+        lbl_en.setStyleSheet("color: white; background: transparent;")
         lbl_en.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        row3.addWidget(lbl_vi)
-        row3.addWidget(lbl_en)
-        right_layout.addLayout(row3)
-        
+
+        # Tham số stretch (1 - 0 - 1) giúp ép hình tròn vào chính giữa tâm một cách hoàn hảo
+        row3.addWidget(lbl_vi, 1)
+        row3.addWidget(circle_lbl, 0, Qt.AlignmentFlag.AlignCenter)
+        row3.addWidget(lbl_en, 1)
+        right_layout.addWidget(row3_frame)
+        #LINE
+        line = QWidget()
+        line.setFixedHeight(1)
+        line.setStyleSheet("background-color: #FFCA95;")
+        right_layout.addWidget(line)
+
         lunar_data = self.fetch_lunar_data()
         # Hàng 4
-        row4 = QHBoxLayout()
+        row4_frame = QFrame()
+        row4_frame.setStyleSheet("background-color: #3C3C3C;")
+        
+        row4 = QHBoxLayout(row4_frame)
+        row4.setContentsMargins(15, 12, 15, 12) 
+        row4.setSpacing(0)
+
         if lunar_data:
-            # Lấy ngày hiện tại của hệ thống (Ví dụ: ngày 6)
             today_index = now.day - 1 
             
-            # Đảm bảo index nằm trong phạm vi mảng trả về
             if 0 <= today_index < len(lunar_data):
                 today_data = lunar_data[today_index]
                 lunar_info = today_data['am_lich']
                 can_chi = today_data['can_chi']
+                
+                # ==========================================
+                # CỘT TRÁI: THÔNG TIN ÂM LỊCH MỚI
+                # ==========================================
                 col_lunar = QVBoxLayout()
-                col_lunar.addWidget(QLabel(f"<b>Âm Lịch</b>: {lunar_info['ngay']}/{lunar_info['thang']}"))
-                col_lunar.addWidget(QLabel(f"Ngày: {can_chi['ngay']}"))
-                row4.addLayout(col_lunar)
+                col_lunar.setContentsMargins(0, 0, 0, 0) 
+                col_lunar.setSpacing(2)
+                
+                # Từ điển chuyển đổi ngày âm sang chữ Trung Quốc
+                lunar_day_val = int(lunar_info['ngay'])
+                chinese_days = ["", "初一", "初二", "初三", "初四", "初五", "初六", "初七", "初八", "初九", "初十",
+                                "十一", "十二", "十三", "十四", "十五", "十六", "十七", "十八", "十九", "二十",
+                                "廿一", "廿二", "廿三", "廿四", "廿五", "廿六", "廿七", "廿八", "廿九", "三十"]
+                cn_day_str = chinese_days[lunar_day_val] if 1 <= lunar_day_val <= 30 else str(lunar_day_val)
+                
+                # Hàng 1: Số ngày âm to lên 48px, canh giữa
+                lbl_lunar_num = QLabel(str(lunar_day_val))
+                lbl_lunar_num.setFont(QFont('Arial', 48, QFont.Weight.Bold))
+                lbl_lunar_num.setStyleSheet("color: white; background: transparent;")
+                lbl_lunar_num.setAlignment(Qt.AlignmentFlag.AlignCenter) 
+                
+                # Hàng 2: Số âm tiếng Trung canh giữa size 24px (Tô màu đỏ tươi cho giống lịch block)
+                lbl_lunar_cn = QLabel(cn_day_str)
+                lbl_lunar_cn.setFont(QFont('Arial', 24, QFont.Weight.Bold))
+                lbl_lunar_cn.setStyleSheet("color: #FF5252; background: transparent;") 
+                lbl_lunar_cn.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                
+                # Hàng 3, 4, 5: Can chi bình thường (Canh trái)
+                lbl_canchi_day = QLabel(f"Ngày {can_chi['ngay']}")
+                lbl_canchi_month = QLabel(f"Tháng {can_chi['thang']}")
+                lbl_canchi_year = QLabel(f"Năm {can_chi['nam']}")
+                
+                col_lunar.addWidget(lbl_lunar_num)
+                col_lunar.addWidget(lbl_lunar_cn)
+                
+                for lbl in (lbl_canchi_day, lbl_canchi_month, lbl_canchi_year):
+                    lbl.setFont(QFont('Arial', 12))
+                    lbl.setStyleSheet("color: #cccccc; background: transparent;")
+                    lbl.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+                    col_lunar.addWidget(lbl)
+                    
+                col_lunar.addStretch() 
+                
+                # Add cột Âm lịch vào hàng 4 (Tỷ lệ 50%)
+                row4.addLayout(col_lunar, 1) 
+                
+                # ==========================================
+                # BORDER RIGHT & CỘT PHẢI: GIỜ HOÀNG ĐẠO
+                # ==========================================
+                border_right = QFrame()
+                border_right.setFixedWidth(1)
+                border_right.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
+                border_right.setStyleSheet("background-color: #666666; border: none;")
+                
+                row4.addWidget(border_right)
+                row4.addSpacing(12) 
+                
                 col_zodiac = QVBoxLayout()
-                gio_str = ", ".join(today_data['gio_hoang_dao'][:2])
-                col_zodiac.addWidget(QLabel(f"<b>Giờ Hoàng Đạo</b><br>{gio_str}"))
-                row4.addLayout(col_zodiac)
-        right_layout.addLayout(row4)
+                col_zodiac.setContentsMargins(0, 0, 0, 0)
+                col_zodiac.setSpacing(4)
+                
+                lbl_zodiac_title = QLabel("<b>GIỜ HOÀNG ĐẠO</b>")
+                lbl_zodiac_title.setFont(QFont('Arial', 14, QFont.Weight.Normal))
+                lbl_zodiac_title.setStyleSheet("color: white; background: transparent;") 
+                lbl_zodiac_title.setAlignment(Qt.AlignmentFlag.AlignLeft)
+                col_zodiac.addWidget(lbl_zodiac_title)
+                
+                zodiac_grid = QGridLayout()
+                zodiac_grid.setContentsMargins(0, 0, 0, 0)
+                zodiac_grid.setSpacing(2) 
+                
+                for idx, g_item in enumerate(today_data['gio_hoang_dao']):
+                    match = re.match(r"([^\s(]+)\s*\(([^)]+)\)", g_item)
+                    if match:
+                        name_part = match.group(1) 
+                        time_part = match.group(2) 
+                    else:
+                        name_part = g_item
+                        time_part = ""
+                        
+                    lbl_name = QLabel(name_part)
+                    lbl_name.setFont(QFont('Arial', 14, QFont.Weight.Normal))
+                    lbl_name.setStyleSheet("color: #90CAF9; background: transparent;") 
+                    lbl_name.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+                    
+                    lbl_time = QLabel(time_part)
+                    lbl_time.setFont(QFont('Arial', 14))
+                    lbl_time.setStyleSheet("color: #cccccc; background: transparent;")
+                    lbl_time.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+                    
+                    zodiac_grid.addWidget(lbl_name, idx, 0)
+                    zodiac_grid.addWidget(lbl_time, idx, 1)
+                    
+                col_zodiac.addLayout(zodiac_grid)
+                col_zodiac.addStretch() 
+                
+                # Add cột Giờ Hoàng Đạo vào hàng 4 (Tỷ lệ 50%)
+                row4.addLayout(col_zodiac, 1) 
+        
+        # Thêm cái frame vào layout bên phải
+        right_layout.addWidget(row4_frame)
+        #LINE
+        line = QWidget()
+        line.setFixedHeight(1)
+        line.setStyleSheet("background-color: #FFCA95;")
+        right_layout.addWidget(line)
+
         # Hàng 5 (Grid Lịch)
         cal_grid = QGridLayout()
         cal_grid.setSpacing(2)
@@ -250,7 +395,7 @@ class DesktopCalendar(QWidget):
                 if day_count > len(lunar_data): break
                 data = lunar_data[day_count - 1]
                 cell = QFrame()
-                cell.setFixedSize(45, 45)
+                cell.setFixedSize(45,70)
                 if day_count == now.day:
                     cell.setStyleSheet("background-color: #ffebee; border: 1px solid #ffcdd2; border-radius: 4px;")
                 else:
@@ -320,10 +465,15 @@ class DesktopCalendar(QWidget):
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key.Key_Escape:
-            if self.isFullScreen():
-                self.showNormal()
-            else:
-                self.close()
+            self.close()
+            
+        # 2. Nếu bấm tổ hợp Alt + F4 -> Đóng app
+        elif event.key() == Qt.Key.Key_F4 and (event.modifiers() & Qt.KeyboardModifier.AltModifier):
+            self.close()
+            
+        # Các phím khác để hệ thống tự xử lý
+        else:
+            super().keyPressEvent(event)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
